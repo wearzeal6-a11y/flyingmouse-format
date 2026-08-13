@@ -6,6 +6,7 @@ const path = require("node:path");
 
 const {
   mergeLegacySettings,
+  normalizeCharacterTheme,
   readLastSaveDirectory,
   readSettings,
   updateSettings,
@@ -45,9 +46,10 @@ test("atomically stores and restores the last successful save directory", async 
 
   assert.equal(await readLastSaveDirectory(settingsPath, fallback), selected);
   assert.deepEqual(JSON.parse(await fsp.readFile(settingsPath, "utf8")), {
-    schemaVersion: 2,
+    schemaVersion: 3,
     lastSaveDirectory: selected,
-    targetBySource: {}
+    targetBySource: {},
+    characterTheme: "mouse"
   });
   assert.deepEqual((await fsp.readdir(path.dirname(settingsPath))).sort(), ["settings.json"]);
 
@@ -56,8 +58,8 @@ test("atomically stores and restores the last successful save directory", async 
   assert.deepEqual((await fsp.readdir(path.dirname(settingsPath))).sort(), ["settings.json"]);
 });
 
-test("stores target mappings and language without erasing the save directory", async (t) => {
-  const scratch = await fsp.mkdtemp(path.join(os.tmpdir(), "flyingmouse-settings-v2-"));
+test("stores target mappings, language, and character theme without erasing the save directory", async (t) => {
+  const scratch = await fsp.mkdtemp(path.join(os.tmpdir(), "flyingmouse-settings-v3-"));
   t.after(() => fsp.rm(scratch, { recursive: true, force: true }));
   const settingsPath = path.join(scratch, "settings.json");
   const directory = path.join(scratch, "Converted");
@@ -66,15 +68,25 @@ test("stores target mappings and language without erasing the save directory", a
   await writeLastSaveDirectory(settingsPath, directory);
   await updateSettings(settingsPath, {
     targetBySource: { PDF: "XLSX", jpeg: "PNG" },
-    language: "en-US"
+    language: "en-US",
+    characterTheme: "cat"
   });
 
   assert.deepEqual(await readSettings(settingsPath), {
-    schemaVersion: 2,
+    schemaVersion: 3,
     lastSaveDirectory: directory,
     targetBySource: { pdf: "xlsx", jpg: "png" },
-    language: "en-US"
+    language: "en-US",
+    characterTheme: "cat"
   });
+});
+
+test("character theme normalization is allowlisted and falls back safely", () => {
+  assert.equal(normalizeCharacterTheme("mouse"), "mouse");
+  assert.equal(normalizeCharacterTheme("cat"), "cat");
+  assert.equal(normalizeCharacterTheme("CAT"), "cat");
+  assert.equal(normalizeCharacterTheme("unknown-theme"), "mouse");
+  assert.equal(normalizeCharacterTheme(""), "mouse");
 });
 
 test("legacy migration fills missing mappings without overwriting newer choices", async (t) => {
@@ -90,6 +102,7 @@ test("legacy migration fills missing mappings without overwriting newer choices"
 
   assert.deepEqual(merged.targetBySource, { pdf: "png", ncm: "mp3" });
   assert.equal(merged.language, "zh-CN");
+  assert.equal(merged.characterTheme, "mouse");
 });
 
 test("refuses to remember a path that is not an existing directory", async (t) => {

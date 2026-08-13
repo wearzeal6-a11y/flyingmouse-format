@@ -117,3 +117,24 @@ test("renderer labels experimental inputs and the macOS AV3A boundary bilinguall
   assert.match(app, /Standard NCM works on macOS; Audio Vivid AV3A currently requires Windows/);
   assert.match(app, /macOS 支持标准 NCM；Audio Vivid AV3A 目前仅支持 Windows/);
 });
+
+test("renderer wires the image-based cat character theme without Live2D", () => {
+  const html = readPublic("index.html");
+  const themes = readPublic("character-themes.js");
+  assert.match(html, /character-themes\.js/);
+  assert.match(themes, /id:\s*"cat"/);
+  for (const asset of [
+    "cat-idle.webp",
+    "cat-upload.webp",
+    "cat-analyzing.webp",
+    "cat-converting.webp",
+    "cat-pdf-pages.webp",
+    "cat-ocr.webp",
+    "cat-batch.webp",
+    "cat-success.webp",
+    "cat-error.webp"
+  ]) {
+    assert.match(themes, new RegExp(asset.replace(".", "\\.")), `${asset} is not wired into the cat theme`);
+  }
+  assert.doesNotMatch(themes, /live2d/i);
+});

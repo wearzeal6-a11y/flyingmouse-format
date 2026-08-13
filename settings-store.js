@@ -2,7 +2,8 @@ const fsp = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
+const CHARACTER_THEMES = new Set(["mouse", "cat"]);
 const EXTENSION_ALIASES = new Map([
   ["jpeg", "jpg"],
   ["markdown", "md"],
@@ -36,6 +37,11 @@ function normalizeTargetMap(value) {
   return result;
 }
 
+function normalizeCharacterTheme(value) {
+  const theme = String(value || "").trim().toLowerCase();
+  return CHARACTER_THEMES.has(theme) ? theme : "mouse";
+}
+
 async function readSettings(settingsPath) {
   let stored = {};
   try {
@@ -47,7 +53,8 @@ async function readSettings(settingsPath) {
 
   const settings = {
     schemaVersion: SCHEMA_VERSION,
-    targetBySource: normalizeTargetMap(stored.targetBySource)
+    targetBySource: normalizeTargetMap(stored.targetBySource),
+    characterTheme: normalizeCharacterTheme(stored.characterTheme)
   };
   if (typeof stored.lastSaveDirectory === "string" && await isDirectory(stored.lastSaveDirectory)) {
     settings.lastSaveDirectory = stored.lastSaveDirectory;
@@ -79,6 +86,9 @@ async function updateSettings(settingsPath, patch = {}) {
   if (Object.prototype.hasOwnProperty.call(patch, "language")) {
     if (patch.language === "zh-CN" || patch.language === "en-US") next.language = patch.language;
     else delete next.language;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "characterTheme")) {
+    next.characterTheme = normalizeCharacterTheme(patch.characterTheme);
   }
   if (Object.prototype.hasOwnProperty.call(patch, "lastSaveDirectory")) {
     if (!await isDirectory(patch.lastSaveDirectory)) {
@@ -116,6 +126,7 @@ async function writeLastSaveDirectory(settingsPath, directory) {
 module.exports = {
   SCHEMA_VERSION,
   mergeLegacySettings,
+  normalizeCharacterTheme,
   normalizeExtension,
   normalizeTargetMap,
   readLastSaveDirectory,
